@@ -384,14 +384,59 @@
   
   #food-hint { color: var(--green); font-size: 0.85rem; min-height: 1rem; font-style: italic; margin-top: -3px; }
   
-  .macro-summary { 
-    margin-top: 15px; 
-    font-weight: 600; 
-    border-top: 1px solid var(--border); 
-    padding-top: 12px; 
-    font-size: 0.95rem;
+  /* Macro Sliders Styles */
+  .macro-target-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .macro-target-box input {
+    padding: 8px;
+    font-size: 0.85rem;
     text-align: center;
+  }
+  .macro-target-box label {
+    font-size: 0.7rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .macro-progress-container {
+    background: #1c1c1e;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 12px;
+  }
+  .macro-progress-row {
+    margin-bottom: 10px;
+  }
+  .macro-progress-row:last-child {
+    margin-bottom: 0;
+  }
+  .macro-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
     color: #dedede;
+  }
+  .macro-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #2c2c2e;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .macro-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--blue);
+    border-radius: 4px;
+    transition: width 0.3s ease;
   }
   
   .reset-btn { 
@@ -710,9 +755,61 @@
   <!-- TAB 4: NUTRITION -->
   <div id="tab-nutrition" class="tab-section">
     <div class="card">
-      <h2>Fuel & Macros</h2>
+      <h2>Fuel & Macro Targets</h2>
       <div class="input-group">
-        <div class="training-row">
+        <!-- Target Inputs Configuration -->
+        <div class="macro-target-grid">
+          <div class="macro-target-box">
+            <label>Target Cals (kcal)</label>
+            <input type="number" id="target-cals" value="2500" oninput="updateMacroTargets()">
+          </div>
+          <div class="macro-target-box">
+            <label>Target Protein (g)</label>
+            <input type="number" id="target-protein" value="180" oninput="updateMacroTargets()">
+          </div>
+          <div class="macro-target-box">
+            <label>Target Carbs (g)</label>
+            <input type="number" id="target-carbs" value="250" oninput="updateMacroTargets()">
+          </div>
+          <div class="macro-target-box">
+            <label>Target Fat (g)</label>
+            <input type="number" id="target-fat" value="70" oninput="updateMacroTargets()">
+          </div>
+        </div>
+
+        <!-- Interactive Progress Sliders / Bars Left -->
+        <div class="macro-progress-container">
+          <div class="macro-progress-row">
+            <div class="macro-bar-label">
+              <span>Calories Left</span>
+              <span id="left-cals-val">2500 kcal</span>
+            </div>
+            <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-cals" style="background:var(--blue);"></div></div>
+          </div>
+          <div class="macro-progress-row" style="margin-top:10px;">
+            <div class="macro-bar-label">
+              <span>Protein Left</span>
+              <span id="left-protein-val">180g</span>
+            </div>
+            <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-protein" style="background:var(--green);"></div></div>
+          </div>
+          <div class="macro-progress-row" style="margin-top:10px;">
+            <div class="macro-bar-label">
+              <span>Carbs Left</span>
+              <span id="left-carbs-val">250g</span>
+            </div>
+            <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-carbs" style="background:var(--gold);"></div></div>
+          </div>
+          <div class="macro-progress-row" style="margin-top:10px;">
+            <div class="macro-bar-label">
+              <span>Fat Left</span>
+              <span id="left-fat-val">70g</span>
+            </div>
+            <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-fat" style="background:var(--red);"></div></div>
+          </div>
+        </div>
+
+        <div class="training-row" style="margin-top:10px;">
           <select id="saved-meal-select" style="flex:2;">
             <option value="">Load Saved Meal...</option>
           </select>
@@ -750,9 +847,6 @@
         </div>
       </div>
       <ul id="meal-log"></ul>
-      <div class="macro-summary" id="macro-totals">
-        Total: 0 kcal | P: 0g | C: 0g | F: 0g
-      </div>
     </div>
   </div>
 
@@ -1038,6 +1132,10 @@
   let waterIntake = Number(localStorage.getItem('waterIntake')) || 0;
   let checkInHistory = JSON.parse(localStorage.getItem('checkInHistory')) || [];
   let currentWeight = Number(localStorage.getItem('currentWeight')) || 0;
+  
+  // Custom Macro Targets
+  let macroTargets = JSON.parse(localStorage.getItem('macroTargets')) || { cals: 2500, protein: 180, carbs: 250, fat: 70 };
+
   let pendingCheckInImage = null;
   let baseFoodMacros = null; 
   let scannedPer100g = null; 
@@ -1051,6 +1149,12 @@
       document.getElementById(p).checked = isChecked;
     });
     updatePrayerUI();
+
+    // Set target inputs from memory
+    document.getElementById('target-cals').value = macroTargets.cals;
+    document.getElementById('target-protein').value = macroTargets.protein;
+    document.getElementById('target-carbs').value = macroTargets.carbs;
+    document.getElementById('target-fat').value = macroTargets.fat;
 
     populateExerciseDropdown();
 
@@ -1077,6 +1181,15 @@
       startSessionTimer();
     }
   };
+
+  function updateMacroTargets() {
+    macroTargets.cals = Number(document.getElementById('target-cals').value) || 0;
+    macroTargets.protein = Number(document.getElementById('target-protein').value) || 0;
+    macroTargets.carbs = Number(document.getElementById('target-carbs').value) || 0;
+    macroTargets.fat = Number(document.getElementById('target-fat').value) || 0;
+    localStorage.setItem('macroTargets', JSON.stringify(macroTargets));
+    renderMeals(); // Re-render to update bars/sliders
+  }
 
   function populateExerciseDropdown() {
     const exSelect = document.getElementById('exercise-select');
@@ -1273,7 +1386,6 @@
     }
 
     if (!baseFoodMacros) return;
-    const selectedText = document.getElementById('food').value;
     let baseUnitDivisor = 100;
     const multiplier = currentAmount / baseUnitDivisor;
 
@@ -1314,7 +1426,26 @@
       acc.cals += curr.cals; acc.p += curr.p; acc.c += curr.c; acc.f += curr.f; return acc;
     }, {cals: 0, p: 0, c: 0, f: 0});
     
-    document.getElementById('macro-totals').innerText = `Total: ${totals.cals} kcal | P: ${totals.p.toFixed(1)}g | C: ${totals.c.toFixed(1)}g | F: ${totals.f.toFixed(1)}g`;
+    // Update progress sliders left
+    const leftCals = Math.max(0, macroTargets.cals - totals.cals);
+    const leftProtein = Math.max(0, macroTargets.protein - totals.p);
+    const leftCarbs = Math.max(0, macroTargets.carbs - totals.c);
+    const leftFat = Math.max(0, macroTargets.fat - totals.f);
+
+    document.getElementById('left-cals-val').innerText = `${Math.round(leftCals)} kcal left`;
+    document.getElementById('left-protein-val').innerText = `${leftProtein.toFixed(1)}g left`;
+    document.getElementById('left-carbs-val').innerText = `${leftCarbs.toFixed(1)}g left`;
+    document.getElementById('left-fat-val').innerText = `${leftFat.toFixed(1)}g left`;
+
+    const calsPercent = macroTargets.cals > 0 ? Math.min(100, (totals.cals / macroTargets.cals) * 100) : 0;
+    const proteinPercent = macroTargets.protein > 0 ? Math.min(100, (totals.p / macroTargets.protein) * 100) : 0;
+    const carbsPercent = macroTargets.carbs > 0 ? Math.min(100, (totals.c / macroTargets.carbs) * 100) : 0;
+    const fatPercent = macroTargets.fat > 0 ? Math.min(100, (totals.f / macroTargets.fat) * 100) : 0;
+
+    document.getElementById('bar-cals').style.width = calsPercent + '%';
+    document.getElementById('bar-protein').style.width = proteinPercent + '%';
+    document.getElementById('bar-carbs').style.width = carbsPercent + '%';
+    document.getElementById('bar-fat').style.width = fatPercent + '%';
   }
 
   function removeMeal(index) {
@@ -1516,19 +1647,16 @@
   function calculateStreak() {
     let streak = 0;
     let d = new Date();
-
-    for (let i = 0; i < 365; i++) {
+    while (true) {
       let key = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-
-      if (masterCalendarLog[key]) {
-        streak++;
-      } else if (i !== 0) {
+      if (masterCalendarLog[key] || streak === 0) {
+        if (masterCalendarLog[key]) streak++;
+      } else {
         break;
       }
-
       d.setDate(d.getDate() - 1);
+      if (streak > 365) break;
     }
-
     document.getElementById('streak-widget').innerText = `🔥 ${streak} Days`;
   }
 
