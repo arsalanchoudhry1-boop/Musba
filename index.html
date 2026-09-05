@@ -755,25 +755,25 @@
   <!-- TAB 4: NUTRITION -->
   <div id="tab-nutrition" class="tab-section">
     <div class="card">
-      <h2>Fuel & Macro Targets</h2>
+      <h2>Fuel & Macro Targets <span id="shift-mode-badge" style="float:right; font-size:0.75rem; background:rgba(10,132,255,0.15); color:var(--blue); padding:3px 8px; border-radius:6px; font-weight:600;">Training Day</span></h2>
       <div class="input-group">
         <!-- Target Inputs Configuration -->
         <div class="macro-target-grid">
           <div class="macro-target-box">
             <label>Target Cals (kcal)</label>
-            <input type="number" id="target-cals" value="2500" oninput="updateMacroTargets()">
+            <input type="number" id="target-cals" oninput="updateMacroTargetsManual()">
           </div>
           <div class="macro-target-box">
             <label>Target Protein (g)</label>
-            <input type="number" id="target-protein" value="180" oninput="updateMacroTargets()">
+            <input type="number" id="target-protein" oninput="updateMacroTargetsManual()">
           </div>
           <div class="macro-target-box">
             <label>Target Carbs (g)</label>
-            <input type="number" id="target-carbs" value="250" oninput="updateMacroTargets()">
+            <input type="number" id="target-carbs" oninput="updateMacroTargetsManual()">
           </div>
           <div class="macro-target-box">
             <label>Target Fat (g)</label>
-            <input type="number" id="target-fat" value="70" oninput="updateMacroTargets()">
+            <input type="number" id="target-fat" oninput="updateMacroTargetsManual()">
           </div>
         </div>
 
@@ -782,28 +782,28 @@
           <div class="macro-progress-row">
             <div class="macro-bar-label">
               <span>Calories Left</span>
-              <span id="left-cals-val">2500 kcal</span>
+              <span id="left-cals-val">0 kcal</span>
             </div>
             <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-cals" style="background:var(--blue);"></div></div>
           </div>
           <div class="macro-progress-row" style="margin-top:10px;">
             <div class="macro-bar-label">
               <span>Protein Left</span>
-              <span id="left-protein-val">180g</span>
+              <span id="left-protein-val">0g</span>
             </div>
             <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-protein" style="background:var(--green);"></div></div>
           </div>
           <div class="macro-progress-row" style="margin-top:10px;">
             <div class="macro-bar-label">
               <span>Carbs Left</span>
-              <span id="left-carbs-val">250g</span>
+              <span id="left-carbs-val">0g</span>
             </div>
             <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-carbs" style="background:var(--gold);"></div></div>
           </div>
           <div class="macro-progress-row" style="margin-top:10px;">
             <div class="macro-bar-label">
               <span>Fat Left</span>
-              <span id="left-fat-val">70g</span>
+              <span id="left-fat-val">0g</span>
             </div>
             <div class="macro-bar-bg"><div class="macro-bar-fill" id="bar-fat" style="background:var(--red);"></div></div>
           </div>
@@ -1133,8 +1133,8 @@
   let checkInHistory = JSON.parse(localStorage.getItem('checkInHistory')) || [];
   let currentWeight = Number(localStorage.getItem('currentWeight')) || 0;
   
-  // Custom Macro Targets
-  let macroTargets = JSON.parse(localStorage.getItem('macroTargets')) || { cals: 2500, protein: 180, carbs: 250, fat: 70 };
+  // Dynamic Macro Targets based on Shift Schedule
+  let activeMacroTargets = { cals: 1550, protein: 140, carbs: 146, fat: 45 };
 
   let pendingCheckInImage = null;
   let baseFoodMacros = null; 
@@ -1150,11 +1150,7 @@
     });
     updatePrayerUI();
 
-    // Set target inputs from memory
-    document.getElementById('target-cals').value = macroTargets.cals;
-    document.getElementById('target-protein').value = macroTargets.protein;
-    document.getElementById('target-carbs').value = macroTargets.carbs;
-    document.getElementById('target-fat').value = macroTargets.fat;
+    determineShiftAndMacros();
 
     populateExerciseDropdown();
 
@@ -1182,13 +1178,47 @@
     }
   };
 
-  function updateMacroTargets() {
-    macroTargets.cals = Number(document.getElementById('target-cals').value) || 0;
-    macroTargets.protein = Number(document.getElementById('target-protein').value) || 0;
-    macroTargets.carbs = Number(document.getElementById('target-carbs').value) || 0;
-    macroTargets.fat = Number(document.getElementById('target-fat').value) || 0;
-    localStorage.setItem('macroTargets', JSON.stringify(macroTargets));
-    renderMeals(); // Re-render to update bars/sliders
+  // --- AUTOMATIC SHIFT & MACRO PRESET CALCULATOR ---
+  function determineShiftAndMacros() {
+    const epoch = new Date('2026-09-05').setHours(0,0,0,0);
+    const now = new Date().setHours(0,0,0,0);
+    const diffDays = Math.floor((now - epoch) / (1000 * 60 * 60 * 24));
+    const cycle = ((diffDays % 8) + 8) % 8;
+    
+    const shiftNames = ["Day Shift 1", "Day Shift 2", "Night Shift 1", "Night Shift 2", "Rest Day 1", "Rest Day 2", "Rest Day 3", "Rest Day 4"];
+    const currentShift = shiftNames[cycle];
+
+    document.getElementById('shift-widget').innerText = currentShift;
+
+    // Shift Logic: 
+    // Training Days = Night Shift 1 (cycle === 2) OR any of the 4 Days Off (cycle >= 4)
+    // Rest Days = Day Shift 1 (0), Day Shift 2 (1), Night Shift 2 (3)
+    let isTrainingDay = (cycle === 2 || cycle >= 4);
+
+    if (isTrainingDay) {
+      activeMacroTargets = { cals: 1550, protein: 140, carbs: 146, fat: 45 };
+      document.getElementById('shift-mode-badge').innerText = "Training Day Preset";
+      document.getElementById('shift-mode-badge').style.background = "rgba(48,209,88,0.15)";
+      document.getElementById('shift-mode-badge').style.color = "var(--green)";
+    } else {
+      activeMacroTargets = { cals: 1350, protein: 140, carbs: 96, fat: 45 }; // Protein maintained at 140g based on daily requirements
+      document.getElementById('shift-mode-badge').innerText = "Rest Day Preset";
+      document.getElementById('shift-mode-badge').style.background = "rgba(10,132,255,0.15)";
+      document.getElementById('shift-mode-badge').style.color = "var(--blue)";
+    }
+
+    document.getElementById('target-cals').value = activeMacroTargets.cals;
+    document.getElementById('target-protein').value = activeMacroTargets.protein;
+    document.getElementById('target-carbs').value = activeMacroTargets.carbs;
+    document.getElementById('target-fat').value = activeMacroTargets.fat;
+  }
+
+  function updateMacroTargetsManual() {
+    activeMacroTargets.cals = Number(document.getElementById('target-cals').value) || 0;
+    activeMacroTargets.protein = Number(document.getElementById('target-protein').value) || 0;
+    activeMacroTargets.carbs = Number(document.getElementById('target-carbs').value) || 0;
+    activeMacroTargets.fat = Number(document.getElementById('target-fat').value) || 0;
+    renderMeals();
   }
 
   function populateExerciseDropdown() {
@@ -1426,21 +1456,20 @@
       acc.cals += curr.cals; acc.p += curr.p; acc.c += curr.c; acc.f += curr.f; return acc;
     }, {cals: 0, p: 0, c: 0, f: 0});
     
-    // Update progress sliders left
-    const leftCals = Math.max(0, macroTargets.cals - totals.cals);
-    const leftProtein = Math.max(0, macroTargets.protein - totals.p);
-    const leftCarbs = Math.max(0, macroTargets.carbs - totals.c);
-    const leftFat = Math.max(0, macroTargets.fat - totals.f);
+    const leftCals = Math.max(0, activeMacroTargets.cals - totals.cals);
+    const leftProtein = Math.max(0, activeMacroTargets.protein - totals.p);
+    const leftCarbs = Math.max(0, activeMacroTargets.carbs - totals.c);
+    const leftFat = Math.max(0, activeMacroTargets.fat - totals.f);
 
     document.getElementById('left-cals-val').innerText = `${Math.round(leftCals)} kcal left`;
     document.getElementById('left-protein-val').innerText = `${leftProtein.toFixed(1)}g left`;
     document.getElementById('left-carbs-val').innerText = `${leftCarbs.toFixed(1)}g left`;
     document.getElementById('left-fat-val').innerText = `${leftFat.toFixed(1)}g left`;
 
-    const calsPercent = macroTargets.cals > 0 ? Math.min(100, (totals.cals / macroTargets.cals) * 100) : 0;
-    const proteinPercent = macroTargets.protein > 0 ? Math.min(100, (totals.p / macroTargets.protein) * 100) : 0;
-    const carbsPercent = macroTargets.carbs > 0 ? Math.min(100, (totals.c / macroTargets.carbs) * 100) : 0;
-    const fatPercent = macroTargets.fat > 0 ? Math.min(100, (totals.f / macroTargets.fat) * 100) : 0;
+    const calsPercent = activeMacroTargets.cals > 0 ? Math.min(100, (totals.cals / activeMacroTargets.cals) * 100) : 0;
+    const proteinPercent = activeMacroTargets.protein > 0 ? Math.min(100, (totals.p / activeMacroTargets.protein) * 100) : 0;
+    const carbsPercent = activeMacroTargets.carbs > 0 ? Math.min(100, (totals.c / activeMacroTargets.carbs) * 100) : 0;
+    const fatPercent = activeMacroTargets.fat > 0 ? Math.min(100, (totals.f / activeMacroTargets.fat) * 100) : 0;
 
     document.getElementById('bar-cals').style.width = calsPercent + '%';
     document.getElementById('bar-protein').style.width = proteinPercent + '%';
@@ -1503,7 +1532,6 @@
       await worker.terminate();
 
       const text = ret.data.text;
-      console.log("OCR Raw Text:\n", text);
 
       function parseMetric(keywordRegex) {
         const lines = text.split('\n');
@@ -1689,18 +1717,7 @@
     reviewEl.innerHTML = `<strong>${lastDateKey}:</strong> You excelled in <em>${positives.join(', ')}</em>. To optimize performance moving forward, focus on <em>${improvements.join(', ')}</em>.`;
   }
 
-  function calculateShift() {
-    const epoch = new Date('2026-09-05').setHours(0,0,0,0);
-    const now = new Date().setHours(0,0,0,0);
-    const diffDays = Math.floor((now - epoch) / (1000 * 60 * 60 * 24));
-    const cycle = ((diffDays % 8) + 8) % 8;
-    
-    const shiftNames = ["Day Shift 1", "Day Shift 2", "Night Shift 1", "Night Shift 2", "Rest Day 1", "Rest Day 2", "Rest Day 3", "Rest Day 4"];
-    document.getElementById('shift-widget').innerText = shiftNames[cycle];
-  }
-
   async function fetchPrayerTimes() {
-    calculateShift();
     try {
       const dateStr = new Date().toISOString().split('T')[0];
       let res = await fetch(`https://www.londonprayertimes.com/api/times/?format=json&date=${dateStr}&24hours=true`).catch(() => null);
@@ -1754,7 +1771,6 @@
       }
     }
 
-    // Highlight active next card
     document.querySelectorAll('.salah-card').forEach(el => el.classList.remove('active-next'));
     const activeCard = document.getElementById('card-' + next.key);
     if (activeCard) activeCard.classList.add('active-next');
